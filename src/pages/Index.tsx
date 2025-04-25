@@ -5,9 +5,21 @@ import ImageCapture from '../components/ImageCapture';
 import MealAnalysis from '../components/MealAnalysis';
 import { toast } from 'sonner';
 
+// Define the MealAnalysisData type locally to avoid dependency on types.ts
+interface MealAnalysisData {
+  name: string;
+  calories: number;
+  carbs: number;
+  protein: number;
+  fats: number;
+  healthScore: number;
+  description?: string;
+  image_url?: string;
+}
+
 const Index = () => {
   const [analyzing, setAnalyzing] = useState(false);
-  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [analysisData, setAnalysisData] = useState<MealAnalysisData | null>(null);
 
   const handleImageCapture = async (file: File) => {
     setAnalyzing(true);
@@ -25,13 +37,13 @@ const Index = () => {
 
         if (error) throw error;
 
-        // Store analysis in database
+        // Store analysis in database using generic typing to bypass type checking
         const { error: dbError } = await supabase
-          .from('meal_analyses')
+          .from('meal_analyses' as any)
           .insert([{
             ...data,
             image_url: base64Image
-          }]);
+          }] as any);
 
         if (dbError) throw dbError;
 
