@@ -63,7 +63,7 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
 
   return (
     <Card className="p-4 bg-card border-none shadow-lg">
-      <div className="camera-frame bg-gradient-to-b from-muted/20 to-muted/10">
+      <div className="camera-frame bg-gradient-to-b from-muted/20 to-muted/10 rounded-2xl overflow-hidden aspect-video relative">
         {isCapturing ? (
           <>
             <video
@@ -72,7 +72,6 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
               playsInline
               className="w-full h-full object-cover"
             />
-            <div className="scan-area" />
             <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-4">
               <Button
                 variant="outline"
@@ -80,13 +79,15 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
                 className="rounded-full w-16 h-16 bg-background/80 backdrop-blur-sm hover:bg-background/90"
                 onClick={captureImage}
                 disabled={isLoading}
-              />
+              >
+                <Camera className="w-8 h-8" />
+              </Button>
             </div>
           </>
         ) : preview ? (
           <img src={preview} alt="Preview" className="w-full h-full object-cover rounded-2xl" />
         ) : (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center justify-center h-full min-h-[200px]">
             <p className="text-muted-foreground">Ready to analyze your meal</p>
           </div>
         )}
