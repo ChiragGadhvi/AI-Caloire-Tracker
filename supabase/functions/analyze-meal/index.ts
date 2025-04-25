@@ -57,7 +57,18 @@ serve(async (req) => {
       console.log("Raw analysis content:", analysisContent);
       
       const jsonContent = analysisContent.replace(/```json|```/g, '').trim();
-      const analysis = JSON.parse(jsonContent);
+      const parsedAnalysis = JSON.parse(jsonContent);
+      
+      // Transform the analysis to match our TypeScript interface
+      const analysis = {
+        name: parsedAnalysis.name,
+        calories: parsedAnalysis.calories,
+        carbs: parsedAnalysis.carbs,
+        protein: parsedAnalysis.protein,
+        fats: parsedAnalysis.fats,
+        healthScore: parsedAnalysis.health_score, // Convert to camelCase
+        description: parsedAnalysis.description,
+      };
       
       console.log("Successfully parsed analysis:", analysis);
       return new Response(JSON.stringify(analysis), {

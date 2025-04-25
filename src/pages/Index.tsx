@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import ImageCapture from '../components/ImageCapture';
@@ -27,7 +26,20 @@ const Index = () => {
 
       if (error) throw error;
       
-      setMealHistory(data || []);
+      const transformedData: MealAnalysisData[] = data?.map(item => ({
+        id: item.id,
+        name: item.name,
+        calories: item.calories,
+        carbs: item.carbs,
+        protein: item.protein,
+        fats: item.fats,
+        healthScore: item.health_score,
+        description: item.description || '',
+        image_url: item.image_url,
+        created_at: item.created_at
+      })) || [];
+      
+      setMealHistory(transformedData);
     } catch (error) {
       console.error('Error fetching meal history:', error);
       toast.error('Failed to load meal history');
@@ -64,10 +76,8 @@ const Index = () => {
 
     setAnalyzing(true);
     try {
-      // Upload image to storage first
       const imageUrl = await uploadImage(selectedImage);
       
-      // Display loading toast
       const loadingToast = toast.loading('Analyzing your meal...');
       
       const { data, error } = await supabase.functions.invoke('analyze-meal', {
@@ -79,23 +89,40 @@ const Index = () => {
       if (error) throw error;
       if (!data) throw new Error("No analysis data returned");
 
-      // Store the analysis in the database
       const { data: savedAnalysis, error: dbError } = await supabase
         .from('meal_analyses')
         .insert([{
-          ...data,
+          name: data.name,
+          calories: data.calories,
+          carbs: data.carbs,
+          protein: data.protein,
+          fats: data.fats,
+          health_score: data.healthScore,
+          description: data.description,
           image_url: imageUrl
         }])
         .select()
         .single();
 
       if (dbError) throw dbError;
+      
+      const transformedAnalysis: MealAnalysisData = {
+        id: savedAnalysis.id,
+        name: savedAnalysis.name,
+        calories: savedAnalysis.calories,
+        carbs: savedAnalysis.carbs,
+        protein: savedAnalysis.protein,
+        fats: savedAnalysis.fats,
+        healthScore: savedAnalysis.health_score,
+        description: savedAnalysis.description || '',
+        image_url: savedAnalysis.image_url,
+        created_at: savedAnalysis.created_at
+      };
 
-      setAnalysisData(savedAnalysis);
+      setAnalysisData(transformedAnalysis);
       await fetchMealHistory();
       toast.success('Meal analyzed successfully!');
       
-      // Scroll to results
       setTimeout(() => {
         const resultsElement = document.getElementById('analysis-results');
         if (resultsElement) {
@@ -142,7 +169,6 @@ const Index = () => {
         </div>
       )}
 
-      {/* Meal History Section */}
       <div className="border-t pt-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
