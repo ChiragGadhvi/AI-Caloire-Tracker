@@ -6,9 +6,10 @@ import { Card } from "@/components/ui/card";
 
 interface ImageCaptureProps {
   onImageCapture: (file: File) => void;
+  isLoading: boolean;
 }
 
-const ImageCapture = ({ onImageCapture }: ImageCaptureProps) => {
+const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -24,7 +25,9 @@ const ImageCapture = ({ onImageCapture }: ImageCaptureProps) => {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' }
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsCapturing(true);
@@ -59,8 +62,8 @@ const ImageCapture = ({ onImageCapture }: ImageCaptureProps) => {
   };
 
   return (
-    <Card className="p-4 bg-secondary">
-      <div className="camera-frame">
+    <Card className="p-4 bg-card border-none shadow-lg">
+      <div className="camera-frame bg-gradient-to-b from-muted/20 to-muted/10">
         {isCapturing ? (
           <>
             <video
@@ -72,21 +75,24 @@ const ImageCapture = ({ onImageCapture }: ImageCaptureProps) => {
             <div className="scan-area" />
             <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-4">
               <Button
-                className="rounded-full w-16 h-16 bg-white hover:bg-white/90"
+                variant="outline"
+                size="icon"
+                className="rounded-full w-16 h-16 bg-background/80 backdrop-blur-sm hover:bg-background/90"
                 onClick={captureImage}
+                disabled={isLoading}
               />
             </div>
           </>
         ) : preview ? (
-          <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+          <img src={preview} alt="Preview" className="w-full h-full object-cover rounded-2xl" />
         ) : (
-          <div className="flex items-center justify-center h-full bg-muted">
-            <p className="text-muted-foreground">No image selected</p>
+          <div className="flex items-center justify-center h-full">
+            <p className="text-muted-foreground">Ready to analyze your meal</p>
           </div>
         )}
       </div>
 
-      <div className="mt-4 flex justify-center gap-4">
+      <div className="mt-6 flex justify-center gap-4">
         <input
           type="file"
           accept="image/*"
@@ -100,11 +106,12 @@ const ImageCapture = ({ onImageCapture }: ImageCaptureProps) => {
               variant="outline"
               className="gap-2"
               onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
             >
               <ImageIcon className="w-4 h-4" />
               Upload
             </Button>
-            <Button className="gap-2" onClick={startCamera}>
+            <Button className="gap-2" onClick={startCamera} disabled={isLoading}>
               <Camera className="w-4 h-4" />
               Camera
             </Button>
