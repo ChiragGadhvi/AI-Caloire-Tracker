@@ -1,17 +1,20 @@
 
 import React, { useRef, useState } from 'react';
-import { Camera, Upload } from 'lucide-react';
+import { Camera, Upload, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ImageCaptureProps {
   onImageCapture: (file: File) => void;
+  onAnalyze: (image: string) => Promise<void>;
   isLoading: boolean;
 }
 
-const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
+const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProps) => {
   const [preview, setPreview] = useState<string | null>(null);
+  const [imageData, setImageData] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -20,8 +23,17 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setPreview(URL.createObjectURL(file));
+      const previewUrl = URL.createObjectURL(file);
+      setPreview(previewUrl);
       onImageCapture(file);
+
+      // Convert to base64 for analysis
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target?.result as string;
+        setImageData(base64);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -53,8 +65,18 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
       canvas.toBlob((blob) => {
         if (blob) {
           const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
-          setPreview(URL.createObjectURL(blob));
+          const previewUrl = URL.createObjectURL(blob);
+          setPreview(previewUrl);
           onImageCapture(file);
+          
+          // Convert to base64
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const base64 = e.target?.result as string;
+            setImageData(base64);
+          };
+          reader.readAsDataURL(file);
+          
           stopCamera();
         }
       }, 'image/jpeg', 0.8);
@@ -69,14 +91,21 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
 
   const resetCapture = () => {
     setPreview(null);
+    setImageData(null);
     stopCamera();
   };
 
+  const handleAnalyzeClick = async () => {
+    if (imageData) {
+      await onAnalyze(imageData);
+    }
+  };
+
   return (
-    <Card className="p-4 bg-card shadow-lg overflow-hidden">
+    <Card className="p-0 bg-card shadow-lg overflow-hidden border-none">
       <div className="relative">
         {isCapturing ? (
-          <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
+          <div className="relative w-full aspect-video bg-black overflow-hidden">
             <video
               ref={videoRef}
               autoPlay
@@ -92,6 +121,14 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
               >
                 <Camera className="w-8 h-8" />
               </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-full w-12 h-12 bg-background/80 backdrop-blur-sm hover:bg-background/90"
+                onClick={stopCamera}
+              >
+                <X className="w-6 h-6" />
+              </Button>
             </div>
           </div>
         ) : preview ? (
@@ -99,38 +136,59 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
             <img 
               src={preview} 
               alt="Preview" 
-              className="w-full rounded-lg aspect-video object-cover"
+              className="w-full aspect-video object-cover"
             />
-            <Button
-              variant="outline"
-              size="sm"
-              className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm"
-              onClick={resetCapture}
-            >
-              Retake
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center min-h-[200px] gap-4 p-4">
-            <p className="text-muted-foreground text-center">
-              Take a photo or upload an image of your meal
-            </p>
-            <div className="flex gap-4">
+            <div className="absolute top-2 right-2 flex gap-2">
               <Button
                 variant="outline"
-                className="gap-2"
-                onClick={() => fileInputRef.current?.click()}
+                size="sm"
+                className="bg-background/80 backdrop-blur-sm"
+                onClick={resetCapture}
+              >
+                Retake
+              </Button>
+            </div>
+            <div className="p-4">
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleAnalyzeClick}
                 disabled={isLoading}
               >
-                <Upload className="w-4 h-4" />
+                {isLoading ? 'Analyzing...' : 'Analyze Meal'}
+              </Button>
+              {isLoading && (
+                <div className="mt-4 space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center p-8 gap-8">
+            <div className="text-center">
+              <h3 className="font-semibold text-xl mb-2">Capture Your Meal</h3>
+              <p className="text-muted-foreground">
+                Take a photo or upload an image to analyze
+              </p>
+            </div>
+            
+            <div className="flex gap-4 w-full max-w-md mx-auto">
+              <Button
+                variant="outline"
+                className="flex-1 h-16 text-lg gap-3"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="w-5 h-5" />
                 Upload
               </Button>
               <Button 
-                className="gap-2" 
+                className="flex-1 h-16 text-lg gap-3"
                 onClick={startCamera}
-                disabled={isLoading}
               >
-                <Camera className="w-4 h-4" />
+                <Camera className="w-5 h-5" />
                 Camera
               </Button>
             </div>
