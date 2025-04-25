@@ -55,10 +55,16 @@ const Index = () => {
 
     setAnalyzing(true);
     try {
+      // Display loading toast
+      const loadingToast = toast.loading('Analyzing your meal...');
+      
       console.log("Sending image for analysis...");
       const { data, error } = await supabase.functions.invoke('analyze-meal', {
         body: { image: imageData }
       });
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
 
       if (error) {
         console.error("Supabase function error:", error);
@@ -93,9 +99,18 @@ const Index = () => {
       setAnalysisData(transformedData);
       fetchMealHistory();
       toast.success('Meal analyzed successfully!');
+      
+      // Scroll to results
+      setTimeout(() => {
+        const resultsElement = document.getElementById('analysis-results');
+        if (resultsElement) {
+          resultsElement.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+      
     } catch (error) {
       console.error('Error analyzing meal:', error);
-      toast.error('Failed to analyze image');
+      toast.error('Failed to analyze image. Please try again.');
     } finally {
       setAnalyzing(false);
     }
@@ -115,7 +130,7 @@ const Index = () => {
       />
       
       {analysisData && !analyzing && (
-        <div className="border-t pt-4">
+        <div id="analysis-results" className="border-t pt-4 animate-fade-in">
           <h2 className="text-xl font-semibold mb-4">Analysis Results</h2>
           <MealAnalysis data={analysisData} />
         </div>

@@ -1,10 +1,11 @@
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from '@/lib/utils';
 
 interface ImageCaptureProps {
   onImageCapture: (file: File) => void;
@@ -18,6 +19,8 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [captureReady, setCaptureReady] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState('aspect-video');
   const isMobile = useIsMobile();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,6 +42,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
   const startCamera = async () => {
     try {
+      // Use environment camera on mobile (back camera), user camera on desktop
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: isMobile ? 'environment' : 'user',
@@ -46,47 +50,73 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
           height: { ideal: 1080 }
         }
       });
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsCapturing(true);
+        
+        // Set up event listener for when video can play
+        videoRef.current.onloadedmetadata = () => {
+          setCaptureReady(true);
+          
+          // Set aspect ratio based on video dimensions
+          if (videoRef.current) {
+            const videoAspect = videoRef.current.videoWidth / videoRef.current.videoHeight;
+            if (videoAspect > 1) {
+              setAspectRatio('aspect-video');
+            } else {
+              setAspectRatio('aspect-[3/4]');
+            }
+          }
+        };
       }
     } catch (err) {
       console.error('Error accessing camera:', err);
+      alert('Could not access camera. Please make sure you have granted camera permissions.');
     }
   };
 
   const captureImage = () => {
-    if (videoRef.current) {
+    if (videoRef.current && captureReady) {
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
-      canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
+      const ctx = canvas.getContext('2d');
       
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
-          const previewUrl = URL.createObjectURL(blob);
-          setPreview(previewUrl);
-          onImageCapture(file);
-          
-          // Convert to base64
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            const base64 = e.target?.result as string;
-            setImageData(base64);
-          };
-          reader.readAsDataURL(file);
-          
-          stopCamera();
-        }
-      }, 'image/jpeg', 0.8);
+      if (ctx) {
+        // Draw the video frame to the canvas
+        ctx.drawImage(videoRef.current, 0, 0);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
+            const previewUrl = URL.createObjectURL(blob);
+            setPreview(previewUrl);
+            onImageCapture(file);
+            
+            // Convert to base64
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const base64 = e.target?.result as string;
+              setImageData(base64);
+            };
+            reader.readAsDataURL(file);
+            
+            stopCamera();
+          }
+        }, 'image/jpeg', 0.9);
+      }
     }
   };
 
   const stopCamera = () => {
-    const stream = videoRef.current?.srcObject as MediaStream;
-    stream?.getTracks().forEach(track => track.stop());
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
     setIsCapturing(false);
+    setCaptureReady(false);
   };
 
   const resetCapture = () => {
@@ -100,31 +130,44 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
       await onAnalyze(imageData);
     }
   };
+  
+  // Clean up on component unmount
+  useEffect(() => {
+    return () => {
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+      stopCamera();
+    };
+  }, [preview]);
 
   return (
-    <Card className="p-0 bg-card shadow-lg overflow-hidden border-none">
+    <Card className="overflow-hidden shadow-lg">
       <div className="relative">
         {isCapturing ? (
-          <div className="relative w-full aspect-video bg-black overflow-hidden">
+          <div className="relative bg-black overflow-hidden">
             <video
               ref={videoRef}
               autoPlay
               playsInline
-              className="w-full h-full object-cover"
+              muted
+              className={cn("w-full h-full object-cover", aspectRatio)}
             />
             <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4 z-10">
               <Button
-                variant="outline"
-                size="icon"
-                className="rounded-full w-16 h-16 bg-background/80 backdrop-blur-sm hover:bg-background/90"
+                variant="default"
+                size="lg"
+                className="rounded-full w-16 h-16 bg-white hover:bg-gray-100 text-black shadow-lg"
                 onClick={captureImage}
+                disabled={!captureReady}
               >
-                <Camera className="w-8 h-8" />
+                <div className="w-12 h-12 rounded-full border-4 border-black"></div>
               </Button>
+              
               <Button
                 variant="outline"
                 size="icon"
-                className="rounded-full w-12 h-12 bg-background/80 backdrop-blur-sm hover:bg-background/90"
+                className="rounded-full w-12 h-12 bg-white/80 backdrop-blur-sm hover:bg-white/90"
                 onClick={stopCamera}
               >
                 <X className="w-6 h-6" />
@@ -136,13 +179,13 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             <img 
               src={preview} 
               alt="Preview" 
-              className="w-full aspect-video object-cover"
+              className="w-full object-cover"
             />
             <div className="absolute top-2 right-2 flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-background/80 backdrop-blur-sm"
+                className="bg-white/80 backdrop-blur-sm text-black"
                 onClick={resetCapture}
               >
                 Retake
@@ -155,8 +198,17 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
                 onClick={handleAnalyzeClick}
                 disabled={isLoading}
               >
-                {isLoading ? 'Analyzing...' : 'Analyze Meal'}
+                {isLoading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Analyzing...
+                  </span>
+                ) : 'Analyze Meal'}
               </Button>
+              
               {isLoading && (
                 <div className="mt-4 space-y-2">
                   <Skeleton className="h-4 w-full" />
@@ -175,7 +227,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
               </p>
             </div>
             
-            <div className="flex gap-4 w-full max-w-md mx-auto">
+            <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md mx-auto">
               <Button
                 variant="outline"
                 className="flex-1 h-16 text-lg gap-3"

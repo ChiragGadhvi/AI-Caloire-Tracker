@@ -37,7 +37,7 @@ serve(async (req) => {
             role: 'user',
             content: [
               { type: 'text', text: 'What meal is shown in this image? Provide nutritional details.' },
-              { type: 'image_url', image_url: image },
+              { type: 'image_url', image_url: { url: image } },
             ],
           },
         ],
