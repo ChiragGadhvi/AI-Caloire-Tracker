@@ -28,7 +28,6 @@ const Index = () => {
 
       if (error) throw error;
       
-      // Transform the data to match our MealAnalysisData interface
       const transformedData: MealAnalysisData[] = data?.map(item => ({
         ...item,
         healthScore: item.health_score,
@@ -45,7 +44,7 @@ const Index = () => {
 
   const handleImageCapture = (file: File) => {
     setSelectedImage(file);
-    setAnalysisData(null); // Reset previous analysis
+    setAnalysisData(null);
   };
 
   const handleAnalyze = async () => {
@@ -67,7 +66,6 @@ const Index = () => {
 
         if (error) throw error;
 
-        // Transform health_score to healthScore for consistency
         const transformedData = {
           ...data,
           healthScore: data.health_score,
@@ -135,31 +133,33 @@ const Index = () => {
         </div>
       )}
 
-      <div className="border-t pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <History className="w-5 h-5" />
-            <h2 className="text-xl font-semibold">Meal History</h2>
+      {!analyzing && (
+        <div className="border-t pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <History className="w-5 h-5" />
+              <h2 className="text-xl font-semibold">Meal History</h2>
+            </div>
           </div>
+          
+          {loading ? (
+            <div className="text-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+              <p className="text-muted-foreground mt-2">Loading meal history...</p>
+            </div>
+          ) : mealHistory.length > 0 ? (
+            <div className="grid gap-4">
+              {mealHistory.map((meal, index) => (
+                <MealAnalysis key={meal.id || index} data={meal} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-8">
+              No meal analyses yet. Take a picture or upload an image to get started!
+            </p>
+          )}
         </div>
-        
-        {loading ? (
-          <div className="text-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin mx-auto" />
-            <p className="text-muted-foreground mt-2">Loading meal history...</p>
-          </div>
-        ) : mealHistory.length > 0 ? (
-          <div className="grid gap-4">
-            {mealHistory.map((meal, index) => (
-              <MealAnalysis key={meal.id || index} data={meal} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-center text-muted-foreground py-8">
-            No meal analyses yet. Take a picture or upload an image to get started!
-          </p>
-        )}
-      </div>
+      )}
     </div>
   );
 };

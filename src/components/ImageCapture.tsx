@@ -67,72 +67,84 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
     setIsCapturing(false);
   };
 
+  const resetCapture = () => {
+    setPreview(null);
+    stopCamera();
+  };
+
   return (
     <Card className="p-4 bg-card shadow-lg overflow-hidden">
-      <div className="camera-frame">
+      <div className="relative">
         {isCapturing ? (
-          <>
+          <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
             <video
               ref={videoRef}
               autoPlay
               playsInline
               className="w-full h-full object-cover"
             />
-            <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-4">
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4 z-10">
               <Button
                 variant="outline"
                 size="icon"
                 className="rounded-full w-16 h-16 bg-background/80 backdrop-blur-sm hover:bg-background/90"
                 onClick={captureImage}
-                disabled={isLoading}
               >
                 <Camera className="w-8 h-8" />
               </Button>
             </div>
-          </>
+          </div>
         ) : preview ? (
-          <img 
-            src={preview} 
-            alt="Preview" 
-            className="w-full h-full object-cover"
-          />
+          <div className="relative">
+            <img 
+              src={preview} 
+              alt="Preview" 
+              className="w-full rounded-lg aspect-video object-cover"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm"
+              onClick={resetCapture}
+            >
+              Retake
+            </Button>
+          </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-4 p-4">
+          <div className="flex flex-col items-center justify-center min-h-[200px] gap-4 p-4">
             <p className="text-muted-foreground text-center">
               Take a photo or upload an image of your meal
             </p>
+            <div className="flex gap-4">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+              >
+                <Upload className="w-4 h-4" />
+                Upload
+              </Button>
+              <Button 
+                className="gap-2" 
+                onClick={startCamera}
+                disabled={isLoading}
+              >
+                <Camera className="w-4 h-4" />
+                Camera
+              </Button>
+            </div>
           </div>
         )}
       </div>
 
-      {!isCapturing && (
-        <div className="mt-6 flex justify-center gap-4">
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-          />
-          <Button
-            variant="outline"
-            className="gap-2 flex-1 max-w-[160px]"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
-          >
-            <Upload className="w-4 h-4" />
-            Upload
-          </Button>
-          <Button 
-            className="gap-2 flex-1 max-w-[160px]" 
-            onClick={startCamera}
-            disabled={isLoading}
-          >
-            <Camera className="w-4 h-4" />
-            Camera
-          </Button>
-        </div>
-      )}
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+      />
     </Card>
   );
 };
