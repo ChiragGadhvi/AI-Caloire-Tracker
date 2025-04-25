@@ -1,11 +1,12 @@
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Camera, Upload, X, ArrowLeft } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface ImageCaptureProps {
   onImageCapture: (file: File) => void;
@@ -21,10 +22,19 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [aspectRatio, setAspectRatio] = useState('aspect-video');
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const isMobile = useIsMobile();
 
   const startCamera = async () => {
     try {
+      setIsCameraReady(false);
+      
+      // Stop any existing stream
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: isMobile ? 'environment' : 'user',
@@ -41,6 +51,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
           if (videoRef.current) {
             const videoAspect = videoRef.current.videoWidth / videoRef.current.videoHeight;
             setAspectRatio(videoAspect > 1 ? 'aspect-video' : 'aspect-[3/4]');
+            setIsCameraReady(true);
           }
         };
       }
@@ -48,7 +59,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
       setIsCameraActive(true);
     } catch (err) {
       console.error('Error accessing camera:', err);
-      // Show error message
+      toast.error('Could not access camera. Please check permissions.');
     }
   };
 
@@ -61,6 +72,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
+    setIsCameraReady(false);
   };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,11 +96,14 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error processing file:', error);
+      toast.error('Error processing the selected image.');
     }
   };
 
   const captureImage = () => {
-    if (videoRef.current) {
+    if (videoRef.current && isCameraReady) {
+      setIsCapturing(true);
+      
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
@@ -102,17 +117,26 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             const imageUrl = URL.createObjectURL(blob);
             setPreview(imageUrl);
             onImageCapture(file);
-            stopCamera();
             
             // Also set the image data for analysis
             const reader = new FileReader();
             reader.onload = (e) => {
               const base64 = e.target?.result as string;
               setImageData(base64);
+              
+              // Only stop the camera after we've successfully processed the image
+              stopCamera();
+              setIsCapturing(false);
             };
             reader.readAsDataURL(file);
+          } else {
+            setIsCapturing(false);
+            toast.error('Failed to capture image');
           }
         }, 'image/jpeg', 0.8);
+      } else {
+        setIsCapturing(false);
+        toast.error('Your browser does not support canvas context');
       }
     }
   };
@@ -129,11 +153,9 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
     stopCamera();
   };
 
-  React.useEffect(() => {
-    return () => {
-      // Clean up camera resources when component unmounts
-      stopCamera();
-    };
+  // Clean up camera resources when component unmounts
+  useEffect(() => {
+    return () => stopCamera();
   }, []);
 
   return (
@@ -145,7 +167,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             <img 
               src={preview} 
               alt="Preview" 
-              className="w-full object-cover aspect-video"
+              className="w-full object-cover h-64 sm:h-80"
             />
             <div className="absolute top-2 right-2">
               <Button
@@ -189,7 +211,16 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
         {/* Camera view */}
         {isCameraActive && (
-          <div className="relative bg-black">
+          <div className="relative bg-black h-64 sm:h-96">
+            {!isCameraReady && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg className="animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="ml-2 text-white">Loading camera...</span>
+              </div>
+            )}
             <video
               ref={videoRef}
               autoPlay
@@ -197,7 +228,8 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
               muted
               className={cn(
                 "w-full h-full object-cover",
-                aspectRatio
+                aspectRatio,
+                !isCameraReady && "invisible"
               )}
             />
             <div className="absolute top-2 left-2">
@@ -215,10 +247,17 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
               <Button 
                 variant="default"
                 size="lg"
-                className="rounded-full w-16 h-16 bg-white hover:bg-gray-100 text-black"
+                disabled={!isCameraReady || isCapturing}
+                className="rounded-full w-16 h-16 bg-white hover:bg-gray-100 text-black disabled:bg-gray-300"
                 onClick={captureImage}
               >
-                <div className="w-12 h-12 rounded-full border-4 border-black"></div>
+                {isCapturing ? (
+                  <div className="w-10 h-10 rounded-full border-2 border-gray-400 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full animate-pulse bg-gray-400"></div>
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-full border-4 border-black"></div>
+                )}
               </Button>
             </div>
           </div>
