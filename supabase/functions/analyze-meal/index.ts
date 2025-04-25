@@ -48,16 +48,14 @@ serve(async (req) => {
     const data = await response.json();
     console.log("OpenAI response received:", data);
     
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error("Unexpected response format from OpenAI");
+    if (!data.choices?.[0]?.message?.content) {
+      throw new Error("Invalid response from OpenAI");
     }
     
-    // Try to parse the response content as JSON
     try {
       const analysisContent = data.choices[0].message.content.trim();
       console.log("Raw analysis content:", analysisContent);
       
-      // Handle case where OpenAI might return JSON with markdown backticks
       const jsonContent = analysisContent.replace(/```json|```/g, '').trim();
       const analysis = JSON.parse(jsonContent);
       
@@ -67,25 +65,7 @@ serve(async (req) => {
       });
     } catch (parseError) {
       console.error("Error parsing OpenAI response as JSON:", parseError);
-      console.log("Attempting to extract JSON from text response...");
-      
-      // Fallback: Try to find JSON-like content in the text
-      const content = data.choices[0].message.content;
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      
-      if (jsonMatch) {
-        try {
-          const extractedJson = JSON.parse(jsonMatch[0]);
-          console.log("Extracted JSON from response:", extractedJson);
-          return new Response(JSON.stringify(extractedJson), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        } catch (e) {
-          throw new Error("Failed to parse JSON from OpenAI response");
-        }
-      } else {
-        throw new Error("Could not extract JSON from OpenAI response");
-      }
+      throw new Error("Failed to parse analysis results");
     }
   } catch (error) {
     console.error('Error:', error);

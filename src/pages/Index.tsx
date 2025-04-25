@@ -5,7 +5,6 @@ import ImageCapture from '../components/ImageCapture';
 import MealAnalysis from '../components/MealAnalysis';
 import { toast } from 'sonner';
 import { Loader2, History, Camera } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { MealAnalysisData } from '@/types/meal';
 
 const Index = () => {
@@ -28,12 +27,7 @@ const Index = () => {
 
       if (error) throw error;
       
-      const transformedData: MealAnalysisData[] = data?.map(item => ({
-        ...item,
-        healthScore: item.health_score,
-      })) || [];
-      
-      setMealHistory(transformedData);
+      setMealHistory(data || []);
     } catch (error) {
       console.error('Error fetching meal history:', error);
       toast.error('Failed to load meal history');
@@ -42,62 +36,63 @@ const Index = () => {
     }
   };
 
+  const uploadImage = async (file: File): Promise<string> => {
+    const filename = `${Date.now()}-${file.name}`;
+    const { data, error } = await supabase.storage
+      .from('meal-images')
+      .upload(filename, file);
+
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('meal-images')
+      .getPublicUrl(filename);
+
+    return publicUrl;
+  };
+
   const handleImageCapture = (file: File) => {
     setSelectedImage(file);
     setAnalysisData(null);
   };
 
   const handleAnalyze = async (imageData: string) => {
-    if (!imageData) {
+    if (!imageData || !selectedImage) {
       toast.error('No image selected');
       return;
     }
 
     setAnalyzing(true);
     try {
+      // Upload image to storage first
+      const imageUrl = await uploadImage(selectedImage);
+      
       // Display loading toast
       const loadingToast = toast.loading('Analyzing your meal...');
       
-      console.log("Sending image for analysis...");
       const { data, error } = await supabase.functions.invoke('analyze-meal', {
         body: { image: imageData }
       });
 
-      // Dismiss loading toast
       toast.dismiss(loadingToast);
 
-      if (error) {
-        console.error("Supabase function error:", error);
-        throw error;
-      }
-
-      console.log("Analysis data received:", data);
-
-      if (!data) {
-        throw new Error("No analysis data returned");
-      }
-
-      const transformedData = {
-        ...data,
-        healthScore: data.health_score || data.healthScore,
-      };
+      if (error) throw error;
+      if (!data) throw new Error("No analysis data returned");
 
       // Store the analysis in the database
-      const { error: dbError } = await supabase
+      const { data: savedAnalysis, error: dbError } = await supabase
         .from('meal_analyses')
         .insert([{
           ...data,
-          health_score: data.health_score || data.healthScore,
-          image_url: imageData
-        }]);
+          image_url: imageUrl
+        }])
+        .select()
+        .single();
 
-      if (dbError) {
-        console.error("Database error:", dbError);
-        throw dbError;
-      }
+      if (dbError) throw dbError;
 
-      setAnalysisData(transformedData);
-      fetchMealHistory();
+      setAnalysisData(savedAnalysis);
+      await fetchMealHistory();
       toast.success('Meal analyzed successfully!');
       
       // Scroll to results
@@ -116,6 +111,14 @@ const Index = () => {
     }
   };
 
+  const handleMealUpdate = (updatedMeal: MealAnalysisData) => {
+    setMealHistory(prevHistory =>
+      prevHistory.map(meal =>
+        meal.id === updatedMeal.id ? updatedMeal : meal
+      )
+    );
+  };
+
   return (
     <div className="min-h-screen p-4 space-y-6 max-w-xl mx-auto">
       <div className="text-center space-y-1">
@@ -132,7 +135,10 @@ const Index = () => {
       {analysisData && !analyzing && (
         <div id="analysis-results" className="border-t pt-4 animate-fade-in">
           <h2 className="text-xl font-semibold mb-4">Analysis Results</h2>
-          <MealAnalysis data={analysisData} />
+          <MealAnalysis 
+            data={analysisData} 
+            onUpdate={handleMealUpdate}
+          />
         </div>
       )}
 
@@ -152,8 +158,12 @@ const Index = () => {
           </div>
         ) : mealHistory.length > 0 ? (
           <div className="grid gap-4">
-            {mealHistory.map((meal, index) => (
-              <MealAnalysis key={meal.id || index} data={meal} />
+            {mealHistory.map((meal) => (
+              <MealAnalysis 
+                key={meal.id} 
+                data={meal}
+                onUpdate={handleMealUpdate}
+              />
             ))}
           </div>
         ) : (

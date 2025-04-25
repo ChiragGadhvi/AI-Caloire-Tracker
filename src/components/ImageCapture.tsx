@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ImageCaptureProps {
   onImageCapture: (file: File) => void;
@@ -23,56 +24,65 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   const [aspectRatio, setAspectRatio] = useState('aspect-video');
   const isMobile = useIsMobile();
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadToStorage = async (file: File): Promise<string> => {
+    const filename = `${Date.now()}-${file.name}`;
+    const { data, error } = await supabase.storage
+      .from('meal-images')
+      .upload(filename, file);
+
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('meal-images')
+      .getPublicUrl(filename);
+
+    return publicUrl;
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setPreview(previewUrl);
-      onImageCapture(file);
+      try {
+        const previewUrl = URL.createObjectURL(file);
+        setPreview(previewUrl);
+        onImageCapture(file);
 
-      // Convert to base64 for analysis
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target?.result as string;
-        setImageData(base64);
-      };
-      reader.readAsDataURL(file);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64 = e.target?.result as string;
+          setImageData(base64);
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Error processing file:', error);
+      }
     }
   };
 
   const startCamera = async () => {
     try {
-      // Use environment camera on mobile (back camera), user camera on desktop
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
           facingMode: isMobile ? 'environment' : 'user',
           width: { ideal: 1920 },
           height: { ideal: 1080 }
         }
       });
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsCapturing(true);
-        
-        // Set up event listener for when video can play
+
         videoRef.current.onloadedmetadata = () => {
           setCaptureReady(true);
-          
-          // Set aspect ratio based on video dimensions
           if (videoRef.current) {
             const videoAspect = videoRef.current.videoWidth / videoRef.current.videoHeight;
-            if (videoAspect > 1) {
-              setAspectRatio('aspect-video');
-            } else {
-              setAspectRatio('aspect-[3/4]');
-            }
+            setAspectRatio(videoAspect > 1 ? 'aspect-video' : 'aspect-[3/4]');
           }
         };
       }
     } catch (err) {
       console.error('Error accessing camera:', err);
-      alert('Could not access camera. Please make sure you have granted camera permissions.');
     }
   };
 
@@ -82,26 +92,23 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
       const ctx = canvas.getContext('2d');
-      
+
       if (ctx) {
-        // Draw the video frame to the canvas
         ctx.drawImage(videoRef.current, 0, 0);
-        
-        canvas.toBlob((blob) => {
+        canvas.toBlob(async (blob) => {
           if (blob) {
             const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
-            const previewUrl = URL.createObjectURL(blob);
+            const previewUrl = URL.createObjectURL(file);
             setPreview(previewUrl);
             onImageCapture(file);
-            
-            // Convert to base64
+
             const reader = new FileReader();
             reader.onload = (e) => {
               const base64 = e.target?.result as string;
               setImageData(base64);
             };
             reader.readAsDataURL(file);
-            
+
             stopCamera();
           }
         }, 'image/jpeg', 0.9);
@@ -110,7 +117,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
+    if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
@@ -130,8 +137,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
       await onAnalyze(imageData);
     }
   };
-  
-  // Clean up on component unmount
+
   useEffect(() => {
     return () => {
       if (preview) {
@@ -163,7 +169,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
               >
                 <div className="w-12 h-12 rounded-full border-4 border-black"></div>
               </Button>
-              
+
               <Button
                 variant="outline"
                 size="icon"
@@ -179,7 +185,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             <img 
               src={preview} 
               alt="Preview" 
-              className="w-full object-cover"
+              className="w-full object-cover aspect-video"
             />
             <div className="absolute top-2 right-2 flex gap-2">
               <Button
@@ -208,7 +214,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
                   </span>
                 ) : 'Analyze Meal'}
               </Button>
-              
+
               {isLoading && (
                 <div className="mt-4 space-y-2">
                   <Skeleton className="h-4 w-full" />
@@ -226,7 +232,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
                 Take a photo or upload an image to analyze
               </p>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md mx-auto">
               <Button
                 variant="outline"
