@@ -37,13 +37,13 @@ const Index = () => {
 
         if (error) throw error;
 
-        // Store analysis in database using generic typing to bypass type checking
+        // Store analysis in database
         const { error: dbError } = await supabase
-          .from('meal_analyses' as any)
+          .from('meal_analyses')
           .insert([{
             ...data,
             image_url: base64Image
-          }] as any);
+          }]);
 
         if (dbError) throw dbError;
 

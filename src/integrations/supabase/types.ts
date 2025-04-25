@@ -9,7 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      meal_analyses: {
+        Row: {
+          calories: number
+          carbs: number
+          created_at: string
+          description: string | null
+          fats: number
+          health_score: number
+          id: string
+          image_url: string | null
+          name: string
+          protein: number
+        }
+        Insert: {
+          calories: number
+          carbs: number
+          created_at?: string
+          description?: string | null
+          fats: number
+          health_score: number
+          id?: string
+          image_url?: string | null
+          name: string
+          protein: number
+        }
+        Update: {
+          calories?: number
+          carbs?: number
+          created_at?: string
+          description?: string | null
+          fats?: number
+          health_score?: number
+          id?: string
+          image_url?: string | null
+          name?: string
+          protein?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
