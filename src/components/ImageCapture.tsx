@@ -1,8 +1,9 @@
 
 import React, { useRef, useState } from 'react';
-import { Camera, Image as ImageIcon } from 'lucide-react';
+import { Camera, Upload } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ImageCaptureProps {
   onImageCapture: (file: File) => void;
@@ -14,6 +15,7 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -26,7 +28,11 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' }
+        video: { 
+          facingMode: isMobile ? 'environment' : 'user',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -51,7 +57,7 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
           onImageCapture(file);
           stopCamera();
         }
-      }, 'image/jpeg');
+      }, 'image/jpeg', 0.8);
     }
   };
 
@@ -62,8 +68,8 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
   };
 
   return (
-    <Card className="p-4 bg-card border-none shadow-lg">
-      <div className="camera-frame bg-gradient-to-b from-muted/20 to-muted/10 rounded-2xl overflow-hidden aspect-video relative">
+    <Card className="p-4 bg-card shadow-lg overflow-hidden">
+      <div className="camera-frame">
         {isCapturing ? (
           <>
             <video
@@ -85,40 +91,48 @@ const ImageCapture = ({ onImageCapture, isLoading }: ImageCaptureProps) => {
             </div>
           </>
         ) : preview ? (
-          <img src={preview} alt="Preview" className="w-full h-full object-cover rounded-2xl" />
+          <img 
+            src={preview} 
+            alt="Preview" 
+            className="w-full h-full object-cover"
+          />
         ) : (
-          <div className="flex items-center justify-center h-full min-h-[200px]">
-            <p className="text-muted-foreground">Ready to analyze your meal</p>
+          <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-4 p-4">
+            <p className="text-muted-foreground text-center">
+              Take a photo or upload an image of your meal
+            </p>
           </div>
         )}
       </div>
 
-      <div className="mt-6 flex justify-center gap-4">
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          ref={fileInputRef}
-          onChange={handleFileSelect}
-        />
-        {!isCapturing && (
-          <>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading}
-            >
-              <ImageIcon className="w-4 h-4" />
-              Upload
-            </Button>
-            <Button className="gap-2" onClick={startCamera} disabled={isLoading}>
-              <Camera className="w-4 h-4" />
-              Camera
-            </Button>
-          </>
-        )}
-      </div>
+      {!isCapturing && (
+        <div className="mt-6 flex justify-center gap-4">
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+          />
+          <Button
+            variant="outline"
+            className="gap-2 flex-1 max-w-[160px]"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+          >
+            <Upload className="w-4 h-4" />
+            Upload
+          </Button>
+          <Button 
+            className="gap-2 flex-1 max-w-[160px]" 
+            onClick={startCamera}
+            disabled={isLoading}
+          >
+            <Camera className="w-4 h-4" />
+            Camera
+          </Button>
+        </div>
+      )}
     </Card>
   );
 };
