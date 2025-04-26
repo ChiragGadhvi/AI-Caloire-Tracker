@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Flame, Wheat, Droplet, Heart, Check, X } from 'lucide-react';
 import { cn } from "@/lib/utils";
@@ -38,8 +39,26 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
     }
   };
 
+  const getHealthScoreColor = (score: number) => {
+    if (score >= 7) return 'text-emerald-500';
+    if (score >= 4) return 'text-amber-500';
+    return 'text-red-500';
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden shadow-sm bg-white border-gray-100">
       {data.image_url && (
         <div className="aspect-video w-full overflow-hidden">
           <img 
@@ -50,15 +69,20 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
         </div>
       )}
       
-      <div className="p-4 space-y-4">
-        <h3 className="text-lg font-semibold">{data.name}</h3>
+      <CardContent className="p-5">
+        <div className="mb-4">
+          <h3 className="text-xl font-semibold text-gray-800">{data.name}</h3>
+          {data.created_at && (
+            <p className="text-xs text-muted-foreground">{formatDate(data.created_at)}</p>
+          )}
+        </div>
         
         {isEditing ? (
-          <div className="space-y-2">
+          <div className="space-y-2 mb-4">
             <Textarea
               value={editedDescription}
               onChange={(e) => setEditedDescription(e.target.value)}
-              className="min-h-[100px]"
+              className="min-h-[100px] resize-none"
               placeholder="Enter meal description..."
             />
             <div className="flex gap-2">
@@ -81,8 +105,8 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
           </div>
         ) : (
           data.description && (
-            <div className="relative group">
-              <p className="text-sm text-muted-foreground pr-8">{data.description}</p>
+            <div className="relative group mb-4">
+              <p className="text-sm text-gray-600 pr-8 leading-relaxed">{data.description}</p>
               <Button
                 variant="ghost"
                 size="sm"
@@ -95,75 +119,82 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
           )
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-red-500/10">
-              <Flame className="w-4 h-4 text-red-500" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Calories</p>
-              <p className="font-medium text-sm">{data.calories}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-yellow-500/10">
-              <Wheat className="w-4 h-4 text-yellow-500" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Carbs</p>
-              <p className="font-medium text-sm">{data.carbs}g</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-blue-500/10">
-              <div className="w-4 h-4 text-blue-500 font-medium flex items-center justify-center text-sm">P</div>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Protein</p>
-              <p className="font-medium text-sm">{data.protein}g</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-purple-500/10">
-              <Droplet className="w-4 h-4 text-purple-500" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Fats</p>
-              <p className="font-medium text-sm">{data.fats}g</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-red-500/10">
-                <Heart className="w-4 h-4 text-red-500" />
+        <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-4 rounded-lg mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center">
+              <div className="p-1.5 rounded-lg bg-red-500/10 mr-2">
+                <Heart className={cn("w-4 h-4", getHealthScoreColor(data.healthScore))} />
               </div>
-              <span className="text-xs text-muted-foreground">Health score</span>
+              <span className="text-sm font-medium">Health score</span>
             </div>
-            <span className="font-medium text-sm">{data.healthScore}/10</span>
+            <span className={cn("font-bold text-lg", getHealthScoreColor(data.healthScore))}>
+              {data.healthScore}/10
+            </span>
           </div>
           <Progress 
             value={data.healthScore * 10} 
             className={cn(
-              "h-1.5",
-              data.healthScore >= 7 ? "bg-emerald-950 [&>div]:bg-emerald-500" :
-              data.healthScore >= 4 ? "bg-yellow-950 [&>div]:bg-yellow-500" :
-              "bg-red-950 [&>div]:bg-red-500"
+              "h-2 rounded-full",
+              data.healthScore >= 7 ? "bg-emerald-100 [&>div]:bg-emerald-500" :
+              data.healthScore >= 4 ? "bg-amber-100 [&>div]:bg-amber-500" :
+              "bg-red-100 [&>div]:bg-red-500"
             )}
           />
         </div>
 
-        {data.created_at && (
-          <p className="text-xs text-muted-foreground mt-4">
-            {new Date(data.created_at).toLocaleDateString()}
-          </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-red-50 to-orange-50">
+            <div className="p-2 rounded-full bg-red-500/10">
+              <Flame className="w-5 h-5 text-red-500" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Calories</p>
+              <p className="font-bold text-lg text-gray-800">{data.calories}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-amber-50 to-yellow-50">
+            <div className="p-2 rounded-full bg-amber-500/10">
+              <Wheat className="w-5 h-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Carbs</p>
+              <p className="font-bold text-lg text-gray-800">{data.carbs}g</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50">
+            <div className="p-2 rounded-full bg-blue-500/10">
+              <div className="w-5 h-5 text-blue-500 font-semibold flex items-center justify-center text-base">P</div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Protein</p>
+              <p className="font-bold text-lg text-gray-800">{data.protein}g</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-purple-50 to-indigo-50">
+            <div className="p-2 rounded-full bg-purple-500/10">
+              <Droplet className="w-5 h-5 text-purple-500" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Fats</p>
+              <p className="font-bold text-lg text-gray-800">{data.fats}g</p>
+            </div>
+          </div>
+        </div>
+        
+        {!data.description && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="mt-4 text-blue-500 hover:text-blue-600"
+            onClick={() => setIsEditing(true)}
+          >
+            + Add notes
+          </Button>
         )}
-      </div>
+      </CardContent>
     </Card>
   );
 };
