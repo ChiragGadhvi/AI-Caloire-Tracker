@@ -27,7 +27,7 @@ const AnalyzePage = () => {
   };
 
   const handleImageCapture = (file: File) => {
-    console.log('Image captured in AnalyzePage:', file.name);
+    console.log('Image selected:', file.name);
     setSelectedImage(file);
     setAnalysisData(null);
   };
@@ -108,7 +108,7 @@ const AnalyzePage = () => {
     <div className="space-y-8 py-4">
       <div className="text-center space-y-1 mb-4">
         <h2 className="text-2xl font-bold text-gray-100">Analyze Your Meal</h2>
-        <p className="text-gray-300">Take a photo or upload an image to get nutritional information</p>
+        <p className="text-gray-300">Upload an image to get nutritional information</p>
       </div>
       
       <ImageCapture 
