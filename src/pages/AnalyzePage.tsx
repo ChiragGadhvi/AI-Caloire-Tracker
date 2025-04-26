@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import ImageCapture from '../components/ImageCapture';
@@ -103,7 +104,12 @@ const AnalyzePage = () => {
   };
 
   return (
-    <div className="relative">
+    <div className="space-y-8 py-4">
+      <div className="text-center space-y-1 mb-4">
+        <h2 className="text-2xl font-bold text-gray-100">Analyze Your Meal</h2>
+        <p className="text-gray-300">Take a photo or upload an image to get nutritional information</p>
+      </div>
+      
       <ImageCapture 
         onImageCapture={handleImageCapture} 
         onAnalyze={handleAnalyze}
@@ -111,7 +117,7 @@ const AnalyzePage = () => {
       />
       
       {analysisData && !analyzing && (
-        <div id="analysis-results" className="fixed inset-0 bg-background overflow-y-auto p-4">
+        <div id="analysis-results" className="pt-4 animate-fade-in">
           <h3 className="text-xl font-semibold mb-4 text-gray-100">Analysis Results</h3>
           <MealAnalysis 
             data={analysisData}
