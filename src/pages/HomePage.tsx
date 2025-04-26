@@ -1,16 +1,12 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Camera, History } from 'lucide-react';
-
 const HomePage = () => {
   const navigate = useNavigate();
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 animate-fade-in">
+  return <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 animate-fade-in">
       <div className="text-center mb-10">
-        <div className="text-7xl mb-4">🥗</div>
+        <div className="text-9xl mb-5">🥗</div>
         <h1 className="text-4xl font-bold bg-gradient-to-r from-[#9d4edd] to-[#c77dff] bg-clip-text text-transparent mb-4">
           Caloire Tracker
         </h1>
@@ -20,24 +16,15 @@ const HomePage = () => {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-        <Button 
-          onClick={() => navigate('/analyze')}
-          className="h-14 flex-1 bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90 text-white"
-        >
+        <Button onClick={() => navigate('/analyze')} className="h-14 flex-1 bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90 text-white">
           <Camera className="mr-2 h-5 w-5" />
           Analyze a Meal
         </Button>
-        <Button 
-          onClick={() => navigate('/history')}
-          variant="outline"
-          className="h-14 flex-1 border-[#e0aaff] text-[#9d4edd] hover:bg-[#e0aaff]/10 dark:text-[#e0aaff] dark:border-[#9d4edd] dark:hover:bg-[#9d4edd]/10"
-        >
+        <Button onClick={() => navigate('/history')} variant="outline" className="h-14 flex-1 border-[#e0aaff] text-[#9d4edd] hover:bg-[#e0aaff]/10 dark:text-[#e0aaff] dark:border-[#9d4edd] dark:hover:bg-[#9d4edd]/10">
           <History className="mr-2 h-5 w-5" />
           View History
         </Button>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default HomePage;
