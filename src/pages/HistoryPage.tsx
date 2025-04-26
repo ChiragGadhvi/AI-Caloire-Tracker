@@ -60,15 +60,15 @@ const HistoryPage = () => {
     <div className="space-y-6 py-4">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Meal History</h2>
-          <p className="text-muted-foreground text-sm">Track your nutritional intake over time</p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Meal History</h2>
+          <p className="text-muted-foreground dark:text-gray-300 text-sm">Track your nutritional intake over time</p>
         </div>
       </div>
       
       {loading ? (
         <div className="text-center py-12">
-          <Loader2 className="w-10 h-10 animate-spin mx-auto text-blue-500" />
-          <p className="text-muted-foreground mt-4">Loading your meal history...</p>
+          <Loader2 className="w-10 h-10 animate-spin mx-auto text-[#9d4edd]" />
+          <p className="text-muted-foreground dark:text-gray-300 mt-4">Loading your meal history...</p>
         </div>
       ) : mealHistory.length > 0 ? (
         <div className="grid gap-6">
@@ -81,15 +81,15 @@ const HistoryPage = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 px-4 rounded-xl border bg-gradient-to-br from-blue-50 to-purple-50">
-          <Camera className="w-14 h-14 mx-auto text-blue-300 mb-4" />
-          <h3 className="text-xl font-semibold mb-2 text-gray-700">No meal history yet</h3>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+        <div className="text-center py-16 px-4 rounded-xl border dark:border-gray-700 bg-gradient-to-br from-purple-50 to-blue-50 dark:bg-gradient-to-br dark:from-gray-800 dark:to-gray-900">
+          <Camera className="w-14 h-14 mx-auto text-[#9d4edd] dark:text-[#e0aaff] mb-4" />
+          <h3 className="text-xl font-semibold mb-2 text-gray-700 dark:text-gray-200">No meal history yet</h3>
+          <p className="text-muted-foreground dark:text-gray-400 mb-6 max-w-md mx-auto">
             You haven't analyzed any meals yet. Take a picture or upload an image to get started!
           </p>
           <Button 
             onClick={() => navigate('/analyze')}
-            className="bg-gradient-to-r from-blue-500 to-blue-600"
+            className="bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90 text-white"
           >
             <Camera className="w-4 h-4 mr-2" /> 
             Analyze a Meal

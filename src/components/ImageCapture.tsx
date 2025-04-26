@@ -1,10 +1,9 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { Camera, Upload, X, ArrowLeft } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -21,107 +20,84 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [aspectRatio, setAspectRatio] = useState('aspect-video');
-  const [isCapturing, setIsCapturing] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [attemptingCamera, setAttemptingCamera] = useState(false);
-  const isMobile = useIsMobile();
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const startCamera = async () => {
     try {
+      // Reset states
       setCameraError(null);
       setIsCameraReady(false);
-      setAttemptingCamera(true);
       
       // Stop any existing stream
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
       
-      console.log("Requesting camera access...");
+      // Request camera access with specific constraints
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: isMobile ? 'environment' : 'user',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
+        video: { 
+          facingMode: 'environment', 
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
       });
       
-      console.log("Camera access granted");
-      
       if (videoRef.current) {
+        // Set the stream as the video source
         videoRef.current.srcObject = mediaStream;
-        console.log("Set media stream to video element");
         
-        // Make sure to set onloadeddata before playing to avoid race conditions
-        videoRef.current.onloadeddata = () => {
-          if (videoRef.current) {
-            console.log("Video data loaded, playing...");
-            videoRef.current.play().catch(err => {
-              console.error("Error playing video:", err);
-              setCameraError("Error starting camera feed");
-              setAttemptingCamera(false);
-            });
-          }
-        };
-        
+        // Wait for the video to be ready
         videoRef.current.onloadedmetadata = () => {
           if (videoRef.current) {
-            console.log("Video metadata loaded");
-            const videoAspect = videoRef.current.videoWidth / videoRef.current.videoHeight;
-            setAspectRatio(videoAspect > 1 ? 'aspect-video' : 'aspect-[3/4]');
-            setTimeout(() => {
-              setIsCameraReady(true);
-              setAttemptingCamera(false);
-            }, 500);
+            videoRef.current.play().catch(err => {
+              console.error("Error playing video:", err);
+              setCameraError("Error starting camera stream");
+            });
+            setIsCameraReady(true);
           }
         };
-
-        videoRef.current.onerror = (e) => {
-          console.error("Video element error:", e);
-          setCameraError("Camera error occurred");
-          setAttemptingCamera(false);
+        
+        videoRef.current.onerror = () => {
+          setCameraError("Video element encountered an error");
         };
         
         setStream(mediaStream);
+        setIsCameraActive(true);
       }
-
-      setIsCameraActive(true);
     } catch (err) {
       console.error('Error accessing camera:', err);
       setCameraError("Could not access camera. Please check permissions.");
-      toast.error('Could not access camera. Please check permissions.');
-      setAttemptingCamera(false);
+      toast.error('Could not access camera. Please check browser permissions.');
     }
   };
 
   const stopCamera = () => {
-    console.log("Stopping camera...");
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
+    
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    
     setIsCameraActive(false);
     setIsCameraReady(false);
-    setCameraError(null);
-    setAttemptingCamera(false);
   };
 
   // Clean up camera resources when component unmounts
-  useEffect(() => {
+  React.useEffect(() => {
     return () => {
       if (stream) {
-        console.log("Component unmounted, stopping camera");
         stream.getTracks().forEach(track => track.stop());
       }
     };
   }, [stream]);
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       processSelectedFile(file);
@@ -158,34 +134,31 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0);
         
-        // Add a slight delay before processing to give visual feedback
-        setTimeout(() => {
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
-              const imageUrl = URL.createObjectURL(blob);
-              
-              // Stop the camera first for better performance
-              stopCamera();
-              
-              // Then set the preview
-              setPreview(imageUrl);
-              onImageCapture(file);
-              
-              // Also set the image data for analysis
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                const base64 = e.target?.result as string;
-                setImageData(base64);
-                setIsCapturing(false);
-              };
-              reader.readAsDataURL(file);
-            } else {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
+            const imageUrl = URL.createObjectURL(blob);
+            
+            // Stop the camera first
+            stopCamera();
+            
+            // Then set the preview
+            setPreview(imageUrl);
+            onImageCapture(file);
+            
+            // Also set the image data for analysis
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const base64 = e.target?.result as string;
+              setImageData(base64);
               setIsCapturing(false);
-              toast.error('Failed to capture image');
-            }
-          }, 'image/jpeg', 0.9);
-        }, 150);
+            };
+            reader.readAsDataURL(file);
+          } else {
+            setIsCapturing(false);
+            toast.error('Failed to capture image');
+          }
+        }, 'image/jpeg', 0.9);
       } else {
         setIsCapturing(false);
         toast.error('Your browser does not support canvas context');
@@ -202,7 +175,6 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   const resetCapture = () => {
     setPreview(null);
     setImageData(null);
-    stopCamera();
   };
 
   return (
@@ -214,7 +186,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             <img 
               src={preview} 
               alt="Food preview" 
-              className="w-full object-cover h-96 sm:h-[500px]"
+              className="w-full object-cover h-96"
             />
             <div className="absolute top-2 right-2">
               <Button
@@ -258,7 +230,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
         {/* Camera view */}
         {isCameraActive && (
-          <div className="relative bg-black h-96 sm:h-[500px]">
+          <div className="relative bg-black h-96">
             {cameraError && (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-black">
                 <div className="bg-red-500/10 rounded-full p-3 mb-2">
@@ -276,7 +248,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
               </div>
             )}
             
-            {(attemptingCamera || !isCameraReady) && !cameraError && (
+            {!isCameraReady && !cameraError && (
               <div className="absolute inset-0 flex items-center justify-center z-10 bg-black">
                 <div className="flex flex-col items-center">
                   <svg className="animate-spin h-10 w-10 text-[#e0aaff]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -295,9 +267,10 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
               muted
               className={cn(
                 "w-full h-full object-cover",
-                aspectRatio
+                isCameraReady ? "" : "opacity-0"
               )}
             />
+            
             <div className="absolute top-2 left-2">
               <Button
                 variant="outline"
@@ -309,6 +282,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
                 Back
               </Button>
             </div>
+            
             <div className="absolute bottom-6 left-0 right-0 flex justify-center">
               <Button 
                 variant="default"

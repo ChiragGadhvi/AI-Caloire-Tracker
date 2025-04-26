@@ -58,7 +58,7 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
   };
 
   return (
-    <Card className="overflow-hidden shadow-sm bg-white border-gray-100">
+    <Card className="overflow-hidden shadow-sm bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700">
       {data.image_url && (
         <div className="aspect-video w-full overflow-hidden">
           <img 
@@ -71,9 +71,9 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
       
       <CardContent className="p-5">
         <div className="mb-4">
-          <h3 className="text-xl font-semibold text-gray-800">{data.name}</h3>
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{data.name}</h3>
           {data.created_at && (
-            <p className="text-xs text-muted-foreground">{formatDate(data.created_at)}</p>
+            <p className="text-xs text-muted-foreground dark:text-gray-400">{formatDate(data.created_at)}</p>
           )}
         </div>
         
@@ -82,11 +82,11 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
             <Textarea
               value={editedDescription}
               onChange={(e) => setEditedDescription(e.target.value)}
-              className="min-h-[100px] resize-none"
+              className="min-h-[100px] resize-none dark:bg-gray-700 dark:text-white dark:border-gray-600"
               placeholder="Enter meal description..."
             />
             <div className="flex gap-2">
-              <Button size="sm" onClick={handleSave}>
+              <Button size="sm" onClick={handleSave} className="bg-[#9d4edd] hover:bg-[#c77dff] text-white">
                 <Check className="w-4 h-4 mr-1" />
                 Save
               </Button>
@@ -97,6 +97,7 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
                   setIsEditing(false);
                   setEditedDescription(data.description || '');
                 }}
+                className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
               >
                 <X className="w-4 h-4 mr-1" />
                 Cancel
@@ -106,11 +107,11 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
         ) : (
           data.description && (
             <div className="relative group mb-4">
-              <p className="text-sm text-gray-600 pr-8 leading-relaxed">{data.description}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 pr-8 leading-relaxed">{data.description}</p>
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity dark:hover:bg-gray-700 dark:text-gray-300"
                 onClick={() => setIsEditing(true)}
               >
                 Edit
@@ -119,13 +120,13 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
           )
         )}
 
-        <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-4 rounded-lg mb-5">
+        <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-700/50 dark:to-gray-800/50 p-4 rounded-lg mb-5">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center">
               <div className="p-1.5 rounded-lg bg-red-500/10 mr-2">
                 <Heart className={cn("w-4 h-4", getHealthScoreColor(data.healthScore))} />
               </div>
-              <span className="text-sm font-medium">Health score</span>
+              <span className="text-sm font-medium dark:text-gray-200">Health score</span>
             </div>
             <span className={cn("font-bold text-lg", getHealthScoreColor(data.healthScore))}>
               {data.healthScore}/10
@@ -135,51 +136,51 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
             value={data.healthScore * 10} 
             className={cn(
               "h-2 rounded-full",
-              data.healthScore >= 7 ? "bg-emerald-100 [&>div]:bg-emerald-500" :
-              data.healthScore >= 4 ? "bg-amber-100 [&>div]:bg-amber-500" :
-              "bg-red-100 [&>div]:bg-red-500"
+              data.healthScore >= 7 ? "bg-emerald-100 dark:bg-emerald-900/30 [&>div]:bg-emerald-500" :
+              data.healthScore >= 4 ? "bg-amber-100 dark:bg-amber-900/30 [&>div]:bg-amber-500" :
+              "bg-red-100 dark:bg-red-900/30 [&>div]:bg-red-500"
             )}
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-red-50 to-orange-50">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 dark:text-gray-200">
             <div className="p-2 rounded-full bg-red-500/10">
               <Flame className="w-5 h-5 text-red-500" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Calories</p>
-              <p className="font-bold text-lg text-gray-800">{data.calories}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Calories</p>
+              <p className="font-bold text-lg text-gray-800 dark:text-gray-100">{data.calories}</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-amber-50 to-yellow-50">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 dark:text-gray-200">
             <div className="p-2 rounded-full bg-amber-500/10">
               <Wheat className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Carbs</p>
-              <p className="font-bold text-lg text-gray-800">{data.carbs}g</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Carbs</p>
+              <p className="font-bold text-lg text-gray-800 dark:text-gray-100">{data.carbs}g</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 dark:text-gray-200">
             <div className="p-2 rounded-full bg-blue-500/10">
               <div className="w-5 h-5 text-blue-500 font-semibold flex items-center justify-center text-base">P</div>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Protein</p>
-              <p className="font-bold text-lg text-gray-800">{data.protein}g</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Protein</p>
+              <p className="font-bold text-lg text-gray-800 dark:text-gray-100">{data.protein}g</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-purple-50 to-indigo-50">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 dark:text-gray-200">
             <div className="p-2 rounded-full bg-purple-500/10">
               <Droplet className="w-5 h-5 text-purple-500" />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Fats</p>
-              <p className="font-bold text-lg text-gray-800">{data.fats}g</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Fats</p>
+              <p className="font-bold text-lg text-gray-800 dark:text-gray-100">{data.fats}g</p>
             </div>
           </div>
         </div>
@@ -188,7 +189,7 @@ const MealAnalysis = ({ data, onUpdate }: MealAnalysisProps) => {
           <Button 
             variant="ghost" 
             size="sm" 
-            className="mt-4 text-blue-500 hover:text-blue-600"
+            className="mt-4 text-[#9d4edd] hover:text-[#c77dff] dark:text-[#e0aaff] dark:hover:bg-gray-700"
             onClick={() => setIsEditing(true)}
           >
             + Add notes
