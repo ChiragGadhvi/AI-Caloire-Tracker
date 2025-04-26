@@ -83,6 +83,13 @@ const AnalyzePage = () => {
 
       setAnalysisData(transformedAnalysis);
       toast.success('Meal analyzed successfully!');
+      
+      setTimeout(() => {
+        const resultsElement = document.getElementById('analysis-results');
+        if (resultsElement) {
+          resultsElement.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
     } catch (error) {
       console.error('Error analyzing meal:', error);
       toast.error('Failed to analyze image. Please try again.');
