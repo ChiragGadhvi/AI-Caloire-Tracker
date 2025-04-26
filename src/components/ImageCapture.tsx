@@ -47,6 +47,8 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        
+        // Make sure to set onloadeddata before playing to avoid race conditions
         videoRef.current.onloadeddata = () => {
           if (videoRef.current) {
             videoRef.current.play().catch(err => {
@@ -60,7 +62,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
           if (videoRef.current) {
             const videoAspect = videoRef.current.videoWidth / videoRef.current.videoHeight;
             setAspectRatio(videoAspect > 1 ? 'aspect-video' : 'aspect-[3/4]');
-            setIsCameraReady(true);
+            setTimeout(() => setIsCameraReady(true), 500);
           }
         };
         
@@ -124,29 +126,35 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0);
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
-            const imageUrl = URL.createObjectURL(blob);
-            setPreview(imageUrl);
-            onImageCapture(file);
-            
-            // Also set the image data for analysis
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const base64 = e.target?.result as string;
-              setImageData(base64);
+        
+        // Add a slight delay before processing to give visual feedback
+        setTimeout(() => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
+              const imageUrl = URL.createObjectURL(blob);
               
-              // Only stop the camera after we've successfully processed the image
+              // Stop the camera first for better performance
               stopCamera();
+              
+              // Then set the preview
+              setPreview(imageUrl);
+              onImageCapture(file);
+              
+              // Also set the image data for analysis
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                const base64 = e.target?.result as string;
+                setImageData(base64);
+                setIsCapturing(false);
+              };
+              reader.readAsDataURL(file);
+            } else {
               setIsCapturing(false);
-            };
-            reader.readAsDataURL(file);
-          } else {
-            setIsCapturing(false);
-            toast.error('Failed to capture image');
-          }
-        }, 'image/jpeg', 0.9);
+              toast.error('Failed to capture image');
+            }
+          }, 'image/jpeg', 0.9);
+        }, 150);
       } else {
         setIsCapturing(false);
         toast.error('Your browser does not support canvas context');
@@ -168,8 +176,12 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
   // Clean up camera resources when component unmounts
   useEffect(() => {
-    return () => stopCamera();
-  }, []);
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
 
   return (
     <Card className="overflow-hidden shadow-lg">
@@ -180,7 +192,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             <img 
               src={preview} 
               alt="Food preview" 
-              className="w-full object-cover h-72 sm:h-96"
+              className="w-full object-cover h-80 sm:h-[450px]"
             />
             <div className="absolute top-2 right-2">
               <Button
@@ -195,7 +207,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             </div>
             <div className="p-4">
               <Button
-                className="w-full"
+                className="w-full bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90"
                 size="lg"
                 onClick={handleAnalyzeClick}
                 disabled={isLoading}
@@ -224,9 +236,9 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
         {/* Camera view */}
         {isCameraActive && (
-          <div className="relative bg-black h-80 sm:h-[450px]">
+          <div className="relative bg-black h-96 sm:h-[500px]">
             {cameraError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-black">
                 <div className="bg-red-500/10 rounded-full p-3 mb-2">
                   <Camera className="w-6 h-6 text-red-500" />
                 </div>
@@ -243,12 +255,14 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             )}
             
             {!isCameraReady && !cameraError && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <svg className="animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span className="ml-2 text-white">Starting camera...</span>
+              <div className="absolute inset-0 flex items-center justify-center z-10 bg-black">
+                <div className="flex flex-col items-center">
+                  <svg className="animate-spin h-10 w-10 text-[#e0aaff]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span className="mt-3 text-white font-medium">Starting camera...</span>
+                </div>
               </div>
             )}
             
@@ -259,8 +273,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
               muted
               className={cn(
                 "w-full h-full object-cover",
-                aspectRatio,
-                (!isCameraReady || cameraError) && "invisible"
+                aspectRatio
               )}
             />
             <div className="absolute top-2 left-2">
@@ -279,15 +292,15 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
                 variant="default"
                 size="lg"
                 disabled={!isCameraReady || isCapturing || !!cameraError}
-                className="rounded-full w-16 h-16 bg-white hover:bg-gray-100 text-black disabled:bg-gray-300"
+                className={`rounded-full w-16 h-16 ${!isCameraReady ? 'bg-gray-300 cursor-not-allowed' : 'bg-white hover:bg-gray-100'} text-black disabled:bg-gray-300 transition-all duration-300`}
                 onClick={captureImage}
               >
                 {isCapturing ? (
                   <div className="w-10 h-10 rounded-full border-2 border-gray-400 flex items-center justify-center">
-                    <div className="w-8 h-8 rounded-full animate-pulse bg-gray-400"></div>
+                    <div className="w-8 h-8 rounded-full animate-pulse bg-[#9d4edd]"></div>
                   </div>
                 ) : (
-                  <div className="w-12 h-12 rounded-full border-4 border-black"></div>
+                  <div className="w-12 h-12 rounded-full border-4 border-[#9d4edd]"></div>
                 )}
               </Button>
             </div>
@@ -298,7 +311,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
         {!preview && !isCameraActive && (
           <div className="flex flex-col items-center justify-center p-8 gap-8">
             <div className="text-center">
-              <h3 className="font-semibold text-xl mb-2">Capture Your Meal</h3>
+              <h3 className="font-semibold text-xl mb-2 text-[#9d4edd]">Capture Your Meal</h3>
               <p className="text-muted-foreground">
                 Take a photo or upload an image to analyze
               </p>
@@ -307,14 +320,14 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md mx-auto">
               <Button
                 variant="outline"
-                className="flex-1 h-16 text-lg gap-3"
+                className="flex-1 h-16 text-lg gap-3 border-[#e0aaff] text-[#9d4edd] hover:bg-[#e0aaff]/10"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="w-5 h-5" />
                 Upload
               </Button>
               <Button 
-                className="flex-1 h-16 text-lg gap-3"
+                className="flex-1 h-16 text-lg gap-3 bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90"
                 onClick={startCamera}
               >
                 <Camera className="w-5 h-5" />

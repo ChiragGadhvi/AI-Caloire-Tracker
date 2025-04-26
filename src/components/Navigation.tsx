@@ -9,7 +9,7 @@ const Navigation = () => {
       <header className="py-4 bg-white shadow-sm">
         <div className="container max-w-2xl mx-auto px-4">
           <h1 className="text-2xl font-bold text-center">
-            <span className="bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#9d4edd] to-[#c77dff] bg-clip-text text-transparent">
               Caloire Tracker
             </span>
           </h1>
@@ -23,8 +23,8 @@ const Navigation = () => {
             to="/" 
             className={({ isActive }) => 
               `flex flex-col items-center py-3 px-6 ${isActive 
-                ? 'text-blue-500' 
-                : 'text-gray-500 hover:text-blue-400'}`
+                ? 'text-[#9d4edd]' 
+                : 'text-gray-500 hover:text-[#e0aaff]'}`
             }
             end
           >
@@ -36,8 +36,8 @@ const Navigation = () => {
             to="/analyze" 
             className={({ isActive }) => 
               `flex flex-col items-center py-3 px-6 ${isActive 
-                ? 'text-blue-500' 
-                : 'text-gray-500 hover:text-blue-400'}`
+                ? 'text-[#9d4edd]' 
+                : 'text-gray-500 hover:text-[#e0aaff]'}`
             }
           >
             <Camera className="w-6 h-6" />
@@ -48,8 +48,8 @@ const Navigation = () => {
             to="/history" 
             className={({ isActive }) => 
               `flex flex-col items-center py-3 px-6 ${isActive 
-                ? 'text-blue-500' 
-                : 'text-gray-500 hover:text-blue-400'}`
+                ? 'text-[#9d4edd]' 
+                : 'text-gray-500 hover:text-[#e0aaff]'}`
             }
           >
             <History className="w-6 h-6" />
