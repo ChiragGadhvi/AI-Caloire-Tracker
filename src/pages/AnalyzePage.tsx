@@ -27,6 +27,7 @@ const AnalyzePage = () => {
   };
 
   const handleImageCapture = (file: File) => {
+    console.log('Image captured in AnalyzePage:', file.name);
     setSelectedImage(file);
     setAnalysisData(null);
   };

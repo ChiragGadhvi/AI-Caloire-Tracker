@@ -20,61 +20,79 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Clean up camera resources when component unmounts
   useEffect(() => {
     return () => {
-      // Clean up camera resources when component unmounts
       stopCamera();
     };
   }, []);
 
   const startCamera = async () => {
     setIsInitializing(true);
+    console.log('Starting camera initialization...');
+    
     try {
-      // Stop any existing camera stream
+      // Stop any existing camera stream first
       stopCamera();
       
+      // Request camera access with environment facing camera (back camera on phones)
       console.log('Requesting camera access...');
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
+        video: true,
         audio: false
       });
       
-      // Store stream reference
+      console.log('Camera access granted. Stream received:', stream);
       streamRef.current = stream;
       
-      console.log('Camera access granted, setting up video element');
+      if (!videoRef.current) {
+        console.error('Video element reference not available');
+        toast.error('Camera initialization failed - video element not found');
+        setIsInitializing(false);
+        return;
+      }
       
-      // Wait for DOM to be ready
-      setTimeout(() => {
+      // Set stream to video element
+      console.log('Setting stream to video element...');
+      videoRef.current.srcObject = stream;
+      
+      // Wait for video to be ready to play
+      videoRef.current.onloadedmetadata = () => {
+        console.log('Video metadata loaded, attempting to play...');
+        
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-            if (videoRef.current) {
-              videoRef.current.play()
-                .then(() => {
-                  console.log('Camera stream started successfully');
-                  setIsCameraOpen(true);
-                  setIsInitializing(false);
-                })
-                .catch(err => {
-                  console.error('Failed to play video stream:', err);
-                  toast.error('Failed to start video stream');
-                  stopCamera();
-                  setIsInitializing(false);
-                });
-            }
-          };
-        } else {
-          console.error('Video element reference not available');
-          toast.error('Camera initialization failed');
-          stopCamera();
-          setIsInitializing(false);
+          videoRef.current.play()
+            .then(() => {
+              console.log('Camera ready! Video playing successfully');
+              setIsCameraOpen(true);
+              setIsInitializing(false);
+            })
+            .catch(err => {
+              console.error('Failed to play video stream:', err);
+              toast.error('Failed to start video stream');
+              stopCamera();
+              setIsInitializing(false);
+            });
         }
-      }, 300); // Give DOM time to render
+      };
+      
+      // Add safety timeout in case onloadedmetadata never fires
+      setTimeout(() => {
+        if (isInitializing) {
+          console.log('Safety timeout reached, checking camera status...');
+          if (videoRef.current && videoRef.current.readyState >= 2) {
+            console.log('Video ready state indicates we can play');
+            setIsCameraOpen(true);
+            setIsInitializing(false);
+          } else {
+            console.error('Camera initialization timed out');
+            toast.error('Camera initialization timed out');
+            stopCamera();
+            setIsInitializing(false);
+          }
+        }
+      }, 5000); // 5 second safety timeout
+      
     } catch (err) {
       console.error('Camera access error:', err);
       toast.error('Could not access camera. Please check permissions.');
@@ -87,6 +105,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
     console.log('Stopping camera...');
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => {
+        console.log('Stopping track:', track.kind);
         track.stop();
       });
       streamRef.current = null;
@@ -100,51 +119,59 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   };
 
   const captureImage = () => {
-    if (videoRef.current && streamRef.current) {
-      console.log('Capturing image...');
-      
-      // Create canvas with video dimensions
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext('2d');
-      
-      if (ctx) {
-        // Draw video frame to canvas
-        ctx.drawImage(videoRef.current, 0, 0);
-        
-        // Convert to blob
-        canvas.toBlob((blob) => {
-          if (blob) {
-            console.log('Image captured successfully');
-            // Create file from blob
-            const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
-            const imageUrl = URL.createObjectURL(blob);
-            
-            // Set preview and notify parent
-            setPreview(imageUrl);
-            onImageCapture(file);
-            
-            // Convert to base64 for analysis
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const base64 = e.target?.result as string;
-              setImageData(base64);
-            };
-            reader.readAsDataURL(file);
-            
-            // Stop camera after capture
-            stopCamera();
-          } else {
-            console.error('Failed to create blob from canvas');
-            toast.error('Failed to capture image');
-          }
-        }, 'image/jpeg', 0.9);
-      }
-    } else {
+    if (!videoRef.current || !streamRef.current) {
       console.error('Video element or stream not available for capture');
       toast.error('Cannot capture image - camera not ready');
+      return;
     }
+    
+    console.log('Capturing image...');
+    // Create canvas with video dimensions
+    const canvas = document.createElement('canvas');
+    const videoWidth = videoRef.current.videoWidth;
+    const videoHeight = videoRef.current.videoHeight;
+    
+    console.log(`Drawing video frame (${videoWidth}x${videoHeight}) to canvas`);
+    canvas.width = videoWidth;
+    canvas.height = videoHeight;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('Failed to get canvas context');
+      toast.error('Failed to capture image');
+      return;
+    }
+    
+    // Draw video frame to canvas
+    ctx.drawImage(videoRef.current, 0, 0, videoWidth, videoHeight);
+    
+    // Convert to blob
+    canvas.toBlob((blob) => {
+      if (blob) {
+        console.log('Image captured successfully, blob size:', blob.size);
+        // Create file from blob
+        const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
+        const imageUrl = URL.createObjectURL(blob);
+        
+        // Set preview and notify parent
+        setPreview(imageUrl);
+        onImageCapture(file);
+        
+        // Convert to base64 for analysis
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64 = e.target?.result as string;
+          setImageData(base64);
+        };
+        reader.readAsDataURL(file);
+        
+        // Stop camera after capture
+        stopCamera();
+      } else {
+        console.error('Failed to create blob from canvas');
+        toast.error('Failed to capture image');
+      }
+    }, 'image/jpeg', 0.9);
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -180,10 +207,10 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   };
 
   return (
-    <Card className="overflow-hidden bg-[#1A1F2C] border-gray-700">
-      <div className="relative aspect-video bg-black">
+    <Card className={`overflow-hidden bg-[#1A1F2C] border-gray-700 ${isCameraOpen ? 'fixed inset-0 z-50 m-0 rounded-none' : ''}`}>
+      <div className={`relative ${isCameraOpen ? 'h-screen' : 'aspect-video'} bg-black`}>
         {isCameraOpen ? (
-          // Camera view
+          // Camera view - full screen when active
           <video
             ref={videoRef}
             autoPlay
@@ -217,7 +244,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
         {/* Capture button when camera is open */}
         {isCameraOpen && !isInitializing && (
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+          <div className="absolute bottom-20 left-0 right-0 flex justify-center">
             <Button
               onClick={captureImage}
               className="rounded-full w-16 h-16 bg-white hover:bg-gray-100 text-black"
@@ -228,7 +255,8 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
         )}
       </div>
 
-      <div className="p-4 space-y-4">
+      {/* Controls - positioned at bottom for camera mode, below for preview mode */}
+      <div className={`${isCameraOpen ? 'absolute bottom-4 left-0 right-0' : 'p-4'} space-y-4`}>
         {!isCameraOpen && !isInitializing && (
           <div className="grid grid-cols-2 gap-4">
             <Button
@@ -255,7 +283,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
           <Button
             onClick={stopCamera}
             variant="outline" 
-            className="w-full border-[#e0aaff] text-[#e0aaff] hover:bg-[#9d4edd]/10"
+            className="w-full max-w-xs mx-auto block border-[#e0aaff] text-white bg-[#1A1F2C]/70 hover:bg-[#9d4edd]/20"
           >
             Cancel
           </Button>
