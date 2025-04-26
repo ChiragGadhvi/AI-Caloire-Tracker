@@ -21,13 +21,10 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Clean up camera resources when component unmounts
+  // Clean up camera resources when component unmounts or camera closes
   useEffect(() => {
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
+      stopCamera();
     };
   }, []);
 
@@ -55,34 +52,37 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
       // Store stream reference for cleanup
       streamRef.current = newStream;
-
-      // Assign to video element if available
-      if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-        
-        // Wait for video to be ready
-        await new Promise((resolve) => {
-          if (videoRef.current) {
-            videoRef.current.onloadedmetadata = () => {
-              resolve(true);
-            };
-          } else {
-            resolve(false);
-          }
-        });
-        
-        // Play the video
-        await videoRef.current.play();
-        setIsCameraOpen(true);
-      } else {
-        throw new Error("Video element not available");
-      }
+      
+      // Wait a moment to ensure DOM is ready
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = newStream;
+          
+          videoRef.current.onloadedmetadata = () => {
+            if (videoRef.current) {
+              videoRef.current.play()
+                .then(() => {
+                  setIsCameraOpen(true);
+                  setIsCameraInitializing(false);
+                })
+                .catch(err => {
+                  console.error('Error playing video:', err);
+                  setCameraError('Error starting video stream');
+                  setIsCameraInitializing(false);
+                  stopCamera();
+                });
+            }
+          };
+        } else {
+          throw new Error("Video element not available");
+        }
+      }, 100);
     } catch (err: any) {
       console.error('Camera access error:', err);
       setCameraError(err.message || 'Could not access camera');
       toast.error('Could not access camera. Please check permissions.');
-    } finally {
       setIsCameraInitializing(false);
+      stopCamera();
     }
   };
 

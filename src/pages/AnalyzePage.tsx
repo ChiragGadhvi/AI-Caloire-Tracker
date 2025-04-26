@@ -39,9 +39,11 @@ const AnalyzePage = () => {
 
     setAnalyzing(true);
     try {
+      console.log('Uploading image...');
       const imageUrl = await uploadImage(selectedImage);
       const loadingToast = toast.loading('Analyzing your meal...');
       
+      console.log('Calling analyze-meal function...');
       const { data, error } = await supabase.functions.invoke('analyze-meal', {
         body: { image: imageData }
       });
@@ -51,6 +53,9 @@ const AnalyzePage = () => {
       if (error) throw error;
       if (!data) throw new Error("No analysis data returned");
 
+      console.log('Analysis data received:', data);
+      
+      // Save analysis to database
       const { data: savedAnalysis, error: dbError } = await supabase
         .from('meal_analyses')
         .insert([{

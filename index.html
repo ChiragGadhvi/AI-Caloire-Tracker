@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -15,6 +16,12 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <style>
+      /* Hide Lovable badge */
+      #lovable-badge {
+        display: none !important;
+      }
+    </style>
   </head>
 
   <body>
@@ -22,5 +29,14 @@
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Remove Lovable badge after page load
+      window.addEventListener('load', function() {
+        const badges = document.querySelectorAll('[id^="lovable-"], [class^="lovable-"]');
+        badges.forEach(badge => {
+          if (badge) badge.remove();
+        });
+      });
+    </script>
   </body>
 </html>
