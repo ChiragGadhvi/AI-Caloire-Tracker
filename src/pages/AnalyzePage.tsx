@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import ImageCapture from '../components/ImageCapture';
 import MealAnalysis from '../components/MealAnalysis';
@@ -108,8 +108,8 @@ const AnalyzePage = () => {
   return (
     <div className="space-y-8 py-4">
       <div className="text-center space-y-1 mb-4">
-        <h2 className="text-2xl font-bold text-gray-800">Analyze Your Meal</h2>
-        <p className="text-muted-foreground">Take a photo or upload an image to get nutritional information</p>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Analyze Your Meal</h2>
+        <p className="text-muted-foreground dark:text-gray-300">Take a photo or upload an image to get nutritional information</p>
       </div>
       
       <ImageCapture 
@@ -120,7 +120,7 @@ const AnalyzePage = () => {
       
       {analysisData && !analyzing && (
         <div id="analysis-results" className="pt-4 animate-fade-in">
-          <h3 className="text-xl font-semibold mb-4 text-gray-800">Analysis Results</h3>
+          <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Analysis Results</h3>
           <MealAnalysis 
             data={analysisData} 
             onUpdate={handleMealUpdate}
@@ -130,9 +130,9 @@ const AnalyzePage = () => {
 
       {analyzing && (
         <div className="text-center py-8">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
-          <p className="text-muted-foreground mt-4">Analyzing your meal with AI...</p>
-          <p className="text-xs text-muted-foreground mt-1">This may take a few moments</p>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#9d4edd]" />
+          <p className="text-muted-foreground dark:text-gray-300 mt-4">Analyzing your meal with AI...</p>
+          <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">This may take a few moments</p>
         </div>
       )}
     </div>

@@ -25,18 +25,21 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   const [isCapturing, setIsCapturing] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [attemptingCamera, setAttemptingCamera] = useState(false);
   const isMobile = useIsMobile();
 
   const startCamera = async () => {
     try {
       setCameraError(null);
       setIsCameraReady(false);
+      setAttemptingCamera(true);
       
       // Stop any existing stream
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
       
+      console.log("Requesting camera access...");
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: isMobile ? 'environment' : 'user',
@@ -44,26 +47,41 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
           height: { ideal: 1080 }
         }
       });
-
+      
+      console.log("Camera access granted");
+      
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        console.log("Set media stream to video element");
         
         // Make sure to set onloadeddata before playing to avoid race conditions
         videoRef.current.onloadeddata = () => {
           if (videoRef.current) {
+            console.log("Video data loaded, playing...");
             videoRef.current.play().catch(err => {
               console.error("Error playing video:", err);
               setCameraError("Error starting camera feed");
+              setAttemptingCamera(false);
             });
           }
         };
         
         videoRef.current.onloadedmetadata = () => {
           if (videoRef.current) {
+            console.log("Video metadata loaded");
             const videoAspect = videoRef.current.videoWidth / videoRef.current.videoHeight;
             setAspectRatio(videoAspect > 1 ? 'aspect-video' : 'aspect-[3/4]');
-            setTimeout(() => setIsCameraReady(true), 500);
+            setTimeout(() => {
+              setIsCameraReady(true);
+              setAttemptingCamera(false);
+            }, 500);
           }
+        };
+
+        videoRef.current.onerror = (e) => {
+          console.error("Video element error:", e);
+          setCameraError("Camera error occurred");
+          setAttemptingCamera(false);
         };
         
         setStream(mediaStream);
@@ -74,10 +92,12 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
       console.error('Error accessing camera:', err);
       setCameraError("Could not access camera. Please check permissions.");
       toast.error('Could not access camera. Please check permissions.');
+      setAttemptingCamera(false);
     }
   };
 
   const stopCamera = () => {
+    console.log("Stopping camera...");
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
@@ -88,7 +108,18 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
     setIsCameraActive(false);
     setIsCameraReady(false);
     setCameraError(null);
+    setAttemptingCamera(false);
   };
+
+  // Clean up camera resources when component unmounts
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        console.log("Component unmounted, stopping camera");
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -174,17 +205,8 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
     stopCamera();
   };
 
-  // Clean up camera resources when component unmounts
-  useEffect(() => {
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [stream]);
-
   return (
-    <Card className="overflow-hidden shadow-lg">
+    <Card className="overflow-hidden shadow-lg dark:bg-gray-800 dark:border-gray-700">
       <div className="relative">
         {/* Preview of captured or selected image */}
         {preview && !isCameraActive && (
@@ -192,13 +214,13 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             <img 
               src={preview} 
               alt="Food preview" 
-              className="w-full object-cover h-80 sm:h-[450px]"
+              className="w-full object-cover h-96 sm:h-[500px]"
             />
             <div className="absolute top-2 right-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-white/80 backdrop-blur-sm text-black"
+                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-black dark:text-white"
                 onClick={resetCapture}
               >
                 <X className="w-4 h-4 mr-1" />
@@ -207,7 +229,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             </div>
             <div className="p-4">
               <Button
-                className="w-full bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90"
+                className="w-full bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90 dark:text-white"
                 size="lg"
                 onClick={handleAnalyzeClick}
                 disabled={isLoading}
@@ -225,9 +247,9 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
               {isLoading && (
                 <div className="mt-4 space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-full dark:bg-gray-700" />
+                  <Skeleton className="h-4 w-3/4 dark:bg-gray-700" />
+                  <Skeleton className="h-4 w-1/2 dark:bg-gray-700" />
                 </div>
               )}
             </div>
@@ -254,7 +276,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
               </div>
             )}
             
-            {!isCameraReady && !cameraError && (
+            {(attemptingCamera || !isCameraReady) && !cameraError && (
               <div className="absolute inset-0 flex items-center justify-center z-10 bg-black">
                 <div className="flex flex-col items-center">
                   <svg className="animate-spin h-10 w-10 text-[#e0aaff]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -311,8 +333,8 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
         {!preview && !isCameraActive && (
           <div className="flex flex-col items-center justify-center p-8 gap-8">
             <div className="text-center">
-              <h3 className="font-semibold text-xl mb-2 text-[#9d4edd]">Capture Your Meal</h3>
-              <p className="text-muted-foreground">
+              <h3 className="font-semibold text-xl mb-2 text-[#9d4edd] dark:text-[#e0aaff]">Capture Your Meal</h3>
+              <p className="text-muted-foreground dark:text-gray-300">
                 Take a photo or upload an image to analyze
               </p>
             </div>
@@ -320,14 +342,14 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md mx-auto">
               <Button
                 variant="outline"
-                className="flex-1 h-16 text-lg gap-3 border-[#e0aaff] text-[#9d4edd] hover:bg-[#e0aaff]/10"
+                className="flex-1 h-16 text-lg gap-3 border-[#e0aaff] text-[#9d4edd] hover:bg-[#e0aaff]/10 dark:text-[#e0aaff] dark:border-[#9d4edd] dark:hover:bg-[#9d4edd]/10"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="w-5 h-5" />
                 Upload
               </Button>
               <Button 
-                className="flex-1 h-16 text-lg gap-3 bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90"
+                className="flex-1 h-16 text-lg gap-3 bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90 text-white"
                 onClick={startCamera}
               >
                 <Camera className="w-5 h-5" />
