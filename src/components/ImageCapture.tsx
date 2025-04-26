@@ -15,80 +15,80 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
   const [preview, setPreview] = useState<string | null>(null);
   const [imageData, setImageData] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [isCameraInitializing, setIsCameraInitializing] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Clean up camera resources when component unmounts or camera closes
   useEffect(() => {
     return () => {
+      // Clean up camera resources when component unmounts
       stopCamera();
     };
   }, []);
 
   const startCamera = async () => {
-    // Reset states
-    setCameraError(null);
-    setIsCameraInitializing(true);
-
+    setIsInitializing(true);
     try {
-      // Stop any existing streams
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-
-      // Request camera access with improved constraints
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
+      // Stop any existing camera stream
+      stopCamera();
+      
+      console.log('Requesting camera access...');
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
           facingMode: 'environment',
           width: { ideal: 1280 },
           height: { ideal: 720 }
         },
         audio: false
       });
-
-      // Store stream reference for cleanup
-      streamRef.current = newStream;
       
-      // Wait a moment to ensure DOM is ready
+      // Store stream reference
+      streamRef.current = stream;
+      
+      console.log('Camera access granted, setting up video element');
+      
+      // Wait for DOM to be ready
       setTimeout(() => {
         if (videoRef.current) {
-          videoRef.current.srcObject = newStream;
-          
+          videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
             if (videoRef.current) {
               videoRef.current.play()
                 .then(() => {
+                  console.log('Camera stream started successfully');
                   setIsCameraOpen(true);
-                  setIsCameraInitializing(false);
+                  setIsInitializing(false);
                 })
                 .catch(err => {
-                  console.error('Error playing video:', err);
-                  setCameraError('Error starting video stream');
-                  setIsCameraInitializing(false);
+                  console.error('Failed to play video stream:', err);
+                  toast.error('Failed to start video stream');
                   stopCamera();
+                  setIsInitializing(false);
                 });
             }
           };
         } else {
-          throw new Error("Video element not available");
+          console.error('Video element reference not available');
+          toast.error('Camera initialization failed');
+          stopCamera();
+          setIsInitializing(false);
         }
-      }, 100);
-    } catch (err: any) {
+      }, 300); // Give DOM time to render
+    } catch (err) {
       console.error('Camera access error:', err);
-      setCameraError(err.message || 'Could not access camera');
       toast.error('Could not access camera. Please check permissions.');
-      setIsCameraInitializing(false);
       stopCamera();
+      setIsInitializing(false);
     }
   };
 
   const stopCamera = () => {
+    console.log('Stopping camera...');
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
       streamRef.current = null;
     }
     
@@ -101,27 +101,30 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
   const captureImage = () => {
     if (videoRef.current && streamRef.current) {
-      // Create a canvas with video dimensions
+      console.log('Capturing image...');
+      
+      // Create canvas with video dimensions
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
       const ctx = canvas.getContext('2d');
-
+      
       if (ctx) {
-        // Draw the current video frame to canvas
+        // Draw video frame to canvas
         ctx.drawImage(videoRef.current, 0, 0);
         
         // Convert to blob
         canvas.toBlob((blob) => {
           if (blob) {
-            // Create a file from blob
+            console.log('Image captured successfully');
+            // Create file from blob
             const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
             const imageUrl = URL.createObjectURL(blob);
             
             // Set preview and notify parent
             setPreview(imageUrl);
             onImageCapture(file);
-
+            
             // Convert to base64 for analysis
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -132,9 +135,15 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             
             // Stop camera after capture
             stopCamera();
+          } else {
+            console.error('Failed to create blob from canvas');
+            toast.error('Failed to capture image');
           }
         }, 'image/jpeg', 0.9);
       }
+    } else {
+      console.error('Video element or stream not available for capture');
+      toast.error('Cannot capture image - camera not ready');
     }
   };
 
@@ -142,11 +151,11 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
     const file = event.target.files?.[0];
     
     if (file) {
-      // Create preview URL
+      console.log('File selected:', file.name);
       const previewUrl = URL.createObjectURL(file);
       setPreview(previewUrl);
       onImageCapture(file);
-
+      
       // Convert to base64
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -172,7 +181,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
 
   return (
     <Card className="overflow-hidden bg-[#1A1F2C] border-gray-700">
-      <div className="relative aspect-video">
+      <div className="relative aspect-video bg-black">
         {isCameraOpen ? (
           // Camera view
           <video
@@ -180,7 +189,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover bg-black"
+            className="w-full h-full object-cover"
           />
         ) : preview ? (
           // Image preview
@@ -196,8 +205,18 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
           </div>
         )}
 
-        {/* Camera active UI */}
-        {isCameraOpen && (
+        {/* Loading overlay */}
+        {isInitializing && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="w-10 h-10 animate-spin text-white" />
+              <p className="text-white">Starting camera...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Capture button when camera is open */}
+        {isCameraOpen && !isInitializing && (
           <div className="absolute bottom-4 left-0 right-0 flex justify-center">
             <Button
               onClick={captureImage}
@@ -207,53 +226,18 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
             </Button>
           </div>
         )}
-
-        {/* Loading UI */}
-        {isCameraInitializing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <div className="flex flex-col items-center text-white">
-              <Loader2 className="w-8 h-8 animate-spin mb-2" />
-              <p>Starting camera...</p>
-            </div>
-          </div>
-        )}
-
-        {/* Error UI */}
-        {cameraError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <div className="bg-[#2A2F3C] p-4 rounded-md max-w-xs mx-auto text-center">
-              <p className="text-red-400 mb-2">{cameraError}</p>
-              <Button 
-                onClick={() => setCameraError(null)}
-                variant="outline"
-                className="border-[#e0aaff] text-[#e0aaff] hover:bg-[#9d4edd]/10"
-              >
-                Dismiss
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="p-4 space-y-4">
-        {!isCameraOpen && !isLoading && (
+        {!isCameraOpen && !isInitializing && (
           <div className="grid grid-cols-2 gap-4">
             <Button
               onClick={startCamera}
               className="bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90 text-white"
-              disabled={isCameraInitializing}
+              disabled={isInitializing}
             >
-              {isCameraInitializing ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Starting...
-                </>
-              ) : (
-                <>
-                  <Camera className="mr-2 h-5 w-5" />
-                  Take Photo
-                </>
-              )}
+              <Camera className="mr-2 h-5 w-5" />
+              Take Photo
             </Button>
 
             <Button
@@ -267,7 +251,7 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
           </div>
         )}
 
-        {isCameraOpen && (
+        {isCameraOpen && !isInitializing && (
           <Button
             onClick={stopCamera}
             variant="outline" 
@@ -277,33 +261,31 @@ const ImageCapture = ({ onImageCapture, onAnalyze, isLoading }: ImageCaptureProp
           </Button>
         )}
 
-        {preview && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                onClick={resetCapture}
-                variant="outline"
-                className="border-[#e0aaff] text-[#e0aaff] hover:bg-[#9d4edd]/10"
-              >
-                <RefreshCw className="mr-2 h-5 w-5" />
-                Retake
-              </Button>
-              
-              <Button
-                onClick={handleAnalyze}
-                className="bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90 text-white"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Analyzing...
-                  </>
-                ) : (
-                  'Analyze Meal'
-                )}
-              </Button>
-            </div>
+        {preview && !isLoading && (
+          <div className="grid grid-cols-2 gap-4">
+            <Button
+              onClick={resetCapture}
+              variant="outline"
+              className="border-[#e0aaff] text-[#e0aaff] hover:bg-[#9d4edd]/10"
+            >
+              <RefreshCw className="mr-2 h-5 w-5" />
+              Retake
+            </Button>
+            
+            <Button
+              onClick={handleAnalyze}
+              className="bg-gradient-to-r from-[#9d4edd] to-[#c77dff] hover:opacity-90 text-white"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                'Analyze Meal'
+              )}
+            </Button>
           </div>
         )}
       </div>
