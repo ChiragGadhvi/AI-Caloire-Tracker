@@ -7,9 +7,7 @@ const HomePage = () => {
   return <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 animate-fade-in">
       <div className="text-center mb-10">
         <div className="text-9xl mb-5">🥗</div>
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-[#9d4edd] to-[#c77dff] bg-clip-text text-transparent mb-4">
-          Caloire Tracker
-        </h1>
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-[#9d4edd] to-[#c77dff] bg-clip-text text-transparent mb-4">AI Caloire Tracker</h1>
         <p className="text-muted-foreground dark:text-gray-300 max-w-md mx-auto">
           Snap a photo of your food to instantly analyze its nutritional content and keep track of your daily intake.
         </p>
